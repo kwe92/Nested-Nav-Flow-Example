@@ -40,38 +40,43 @@ void main() {
       // onGenerateRoute:
       //   - The route generator callback used when the app is navigated to a named route.
       //   - This is used if [routes] does not contain the requested route.
-      onGenerateRoute: (RouteSettings settings) {
-        final Widget page;
-
-        // only check that the named route starts with the desired prefix and ignore sub-route
-        if (settings.name!.startsWith(routePrefixDeviceSetup)) {
-          debugPrint('SetupFlow: settings.name: ${settings.name}');
-
-          // remove the route prefix (top level route), leaving only the sub-route
-          final subRoute = settings.name!.substring(routePrefixDeviceSetup.length);
-
-          debugPrint('SetupFlow: subRoute: $subRoute');
-
-          // return SetupFlow view and let the SetupFlow determine its navigation based on the parsed sub-route
-          page = SetupFlow(setupPageRoute: subRoute);
-        } else {
-          page = switch (settings.name) {
-            routeHome => const HomeScreen(),
-            routeSettings => const SettingsScreen(),
-            _ => throw Exception('Unknown route: ${settings.name}'),
-          };
-        }
-
-        return MaterialPageRoute<dynamic>(
-          builder: (context) => page,
-          settings: settings,
-        );
-      },
+      onGenerateRoute: _onGenerateRouteCallback,
       debugShowCheckedModeBanner: false,
     ),
   );
 }
 
+Route _onGenerateRouteCallback(RouteSettings settings) {
+  final Widget page;
+
+  debugPrint('Top level Navigator handling navigation: ${settings.name}');
+
+  // only check that the named route starts with the desired prefix and ignore sub-route
+  if (settings.name!.startsWith(routePrefixDeviceSetup)) {
+    debugPrint('SetupFlow: settings.name: ${settings.name}');
+
+    // remove the route prefix (top level route), leaving only the sub-route
+    final subRoute = settings.name!.substring(routePrefixDeviceSetup.length);
+
+    debugPrint('SetupFlow: subRoute: $subRoute');
+
+    // let SetupFlow determine its navigation based on the parsed sub-route
+    page = SetupFlow(setupPageRoute: subRoute);
+  } else {
+    page = switch (settings.name) {
+      routeHome => const HomeScreen(),
+      routeSettings => const SettingsScreen(),
+      _ => throw Exception('Unknown route: ${settings.name}'),
+    };
+  }
+
+  return MaterialPageRoute<dynamic>(
+    builder: (context) => page,
+    settings: settings,
+  );
+}
+
+/// Used to display the correct view within the setup flow.
 @immutable
 class SetupFlow extends StatefulWidget {
   static SetupFlowState of(BuildContext context) {
@@ -149,12 +154,16 @@ class SetupFlowState extends State<SetupFlow> {
 
   @override
   Widget build(BuildContext context) {
-    //?? Why use PopScope if canPop is false?
+    // Why use PopScope
+
+    //   - to manage back navigation gestures
     return PopScope(
       canPop: false,
       onPopInvoked: (didPop) async {
-        if (didPop) return;
+        debugPrint('PopScope: didPop = $didPop');
 
+        if (didPop) return;
+        // !! in what scenario would the bellow if statement be called??
         if (await _isExitDesired() && context.mounted) {
           debugPrint('PopScope: _isExitDesired');
           _exitSetup();
@@ -172,6 +181,7 @@ class SetupFlowState extends State<SetupFlow> {
   }
 
   Route<Widget> _onGenerateRoute(RouteSettings settings) {
+    debugPrint('secondary Navigator handling navigation: ${settings.name}');
     final page = switch (settings.name) {
       routeDeviceSetupStartPage => WaitingPage(
           message: 'Searching for nearby bulb...',
@@ -241,7 +251,7 @@ class SelectDevicePage extends StatelessWidget {
                     }),
                   ),
                   onPressed: () {
-                    onDeviceSelected('22n483nk5834');
+                    onDeviceSelected.call('22n483nk5834');
                   },
                   child: const Text(
                     'Bulb 22n483nk5834',
