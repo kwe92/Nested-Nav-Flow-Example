@@ -4,9 +4,9 @@
 
 - Nest routes in another widget, instead of defining all routes in the top level Nagivator
 
-- Learn to Delegate Navigation with a second nested Navigator within Another Widget
+- Learn to delegate navigation with a second nested Navigator within another Widget
 
-- Maintain Navigation beneath the top-level Navigator Widget
+- Maintain navigation beneath the top-level Navigator widget
 
 ### Original Source Code For Example:
 
