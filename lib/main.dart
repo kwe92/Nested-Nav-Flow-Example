@@ -1,17 +1,31 @@
+// Goals
+
+//   - Nest routes in another widget, instead of defining all routes in the top level Nagivator
+
+//   - Learn to Delegate Navigation with a second nested Navigator within Another Widget
+
+//   - Maintain Navigation beneath the top-level Navigator Widget
+
 import 'package:flutter/material.dart';
 
+//! Top-Level Paths
 const routeHome = '/';
 const routeSettings = '/settings';
 const routePrefixDeviceSetup = '/setup/';
+
+//! Sub-Level Paths
 const routeDeviceSetupStart = '/setup/$routeDeviceSetupStartPage';
 const routeDeviceSetupStartPage = 'find_devices';
 const routeDeviceSetupSelectDevicePage = 'select_device';
 const routeDeviceSetupConnectingPage = 'connecting';
 const routeDeviceSetupFinishedPage = 'finished';
 
+final topLevelNavigatorKey = GlobalKey<NavigatorState>();
+
 void main() {
   runApp(
     MaterialApp(
+      navigatorKey: topLevelNavigatorKey,
       theme: ThemeData(
         brightness: Brightness.dark,
         appBarTheme: const AppBarTheme(
@@ -21,25 +35,35 @@ void main() {
           backgroundColor: Colors.blue,
         ),
       ),
-      onGenerateRoute: (settings) {
-        late Widget page;
-        if (settings.name == routeHome) {
-          page = const HomeScreen();
-        } else if (settings.name == routeSettings) {
-          page = const SettingsScreen();
-        } else if (settings.name!.startsWith(routePrefixDeviceSetup)) {
+      //  TODO: take a look at RouteSettings source code
+
+      // onGenerateRoute:
+      //   - The route generator callback used when the app is navigated to a named route.
+      //   - This is used if [routes] does not contain the requested route.
+      onGenerateRoute: (RouteSettings settings) {
+        final Widget page;
+
+        // only check that the named route starts with the desired prefix and ignore sub-route
+        if (settings.name!.startsWith(routePrefixDeviceSetup)) {
+          debugPrint('SetupFlow: settings.name: ${settings.name}');
+
+          // remove the route prefix (top level route), leaving only the sub-route
           final subRoute = settings.name!.substring(routePrefixDeviceSetup.length);
-          page = SetupFlow(
-            setupPageRoute: subRoute,
-          );
+
+          debugPrint('SetupFlow: subRoute: $subRoute');
+
+          // return SetupFlow view and let the SetupFlow determine its navigation based on the parsed sub-route
+          page = SetupFlow(setupPageRoute: subRoute);
         } else {
-          throw Exception('Unknown route: ${settings.name}');
+          page = switch (settings.name) {
+            routeHome => const HomeScreen(),
+            routeSettings => const SettingsScreen(),
+            _ => throw Exception('Unknown route: ${settings.name}'),
+          };
         }
 
         return MaterialPageRoute<dynamic>(
-          builder: (context) {
-            return page;
-          },
+          builder: (context) => page,
           settings: settings,
         );
       },
@@ -125,12 +149,14 @@ class SetupFlowState extends State<SetupFlow> {
 
   @override
   Widget build(BuildContext context) {
+    //?? Why use PopScope if canPop is false?
     return PopScope(
       canPop: false,
       onPopInvoked: (didPop) async {
         if (didPop) return;
 
         if (await _isExitDesired() && context.mounted) {
+          debugPrint('PopScope: _isExitDesired');
           _exitSetup();
         }
       },
@@ -361,7 +387,7 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: _buildAppBar(context),
+      appBar: CustomAppBar(),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -453,4 +479,18 @@ class SettingsScreen extends StatelessWidget {
       title: const Text('Settings'),
     );
   }
+}
+
+class CustomAppBar extends AppBar {
+  CustomAppBar({
+    super.title = const Text('Welcome'),
+    super.key,
+  }) : super(
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: () => topLevelNavigatorKey.currentState!.pushNamed(routeSettings),
+            ),
+          ],
+        );
 }
